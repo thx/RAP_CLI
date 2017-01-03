@@ -1,0 +1,146 @@
+#!/usr/bin/env node
+
+let fs = require('fs')
+let fse = require('fs-extra')
+let http = require('http')
+let path = require('path')
+let program = require('commander')
+let pkg = require('./package.json')
+let _ = require('underscore')
+let pug = require('pug')
+
+const TARGET_VIEW = './target/view'
+const TARGET_MODEL = './target/model'
+const TEMPLATE_MODEL = './templates/model/model.js'
+const TEMPLATE_VIEW_LIST = './templates/view/list'
+const TEMPLATE_VIEW_ITEM = './templates/view/item'
+
+program
+    .version(pkg.version)
+    .on('--help', () => {
+        console.log('  Examples:')
+        console.log('')
+        console.log('    $ delos project 1448')
+        console.log('')
+    })
+
+program
+    .command('project')
+    .description('init modules, pages, actions and properties')
+    .action((projectId) => {
+        Model.project(projectId, function(project) {
+            project.modules.map(module => {
+                Generator.model(module)
+                module.pages.map(page => {
+                    if (page.actions) page.actions.map(action => {
+                        Generator.view(module, page, action)
+                    })
+                })
+            })
+        })
+    })
+
+let Generator = {
+    template: {
+        pug: function(source, destination, data) {
+            console.log(source, '=>', destination)
+            fse.readFile(source, 'utf8', function(err, content) {
+                content = pug.compile(content, {
+                    pretty: '    '
+                })(data)
+                content = _.template(content)(data)
+                fse.mkdirsSync(path.dirname(destination))
+                fse.writeFile(destination, content, (err) => {
+                    if (err) console.log(err)
+                })
+            })
+            return this
+        },
+        js: function(source, destination, data) {
+            console.log(source, '=>', destination)
+            fse.readFile(source, 'utf8', function(err, content) {
+                content = _.template(content)(data)
+                fse.writeFile(destination, content, (err) => {
+                    if (err) console.log(err)
+                })
+            })
+            return this
+        }
+    },
+    view: function(module, page, action) {
+        var data = {
+            module,
+            page,
+            action
+        }
+        Generator.template
+            .pug(`${TEMPLATE_VIEW_LIST}.pug`, `${TARGET_VIEW}/${action.name}_list.html`, data)
+            .js(`${TEMPLATE_VIEW_LIST}.js`, `${TARGET_VIEW}/${action.name}_list.js`, data)
+        Generator.template
+            .pug(`${TEMPLATE_VIEW_ITEM}.pug`, `${TARGET_VIEW}/${action.name}_item.html`, data)
+            .js(`${TEMPLATE_VIEW_ITEM}.js`, `${TARGET_VIEW}/${action.name}_item.js`, data)
+    },
+    model: function(module) {
+        var models = []
+        module.pages.map(p => {
+            p.actions.map(a => {
+                models.push({
+                    name: a.name,
+                    url: a.requestUrl,
+                    method: {
+                        1: 'GET',
+                        2: 'POST',
+                        3: 'PUT',
+                        4: 'DELETE'
+                    }[a.requestType]
+                })
+            })
+        })
+
+        fse.readFile(TEMPLATE_MODEL, 'utf8', function(err, content) {
+            content = _.template(content)({
+                models: models
+            })
+            fse.mkdirsSync(`${TARGET_MODEL}`)
+            fse.writeFile(`${TARGET_MODEL}/${module.name}.js`, content, (err) => {
+                if (err) console.log(err)
+            })
+        })
+    }
+}
+let Model = {
+    project: (id, cb) => {
+        var url = `http://rap.taobao.org/api/queryRAPModel.do?projectId=${id}`
+        console.log(url)
+        return http.get(url, (res) => {
+            res.setEncoding('utf8')
+            let rawData = ''
+            res.on('data', (chunk) => rawData += chunk)
+            res.on('end', () => {
+                try {
+                    let parsedData = JSON.parse(rawData)
+                    let project = eval('(' + parsedData.modelJSON + ')')
+
+                    project.modules = project.moduleList, delete project.moduleList
+                    project.modules.forEach(m => {
+                        m.pages = m.pageList, delete m.pageList
+                        m.pages.forEach(p => {
+                            p.actions = p.actionList, delete p.actionList
+                        })
+                    })
+
+                    cb(project)
+                } catch (e) {
+                    console.log(e.message)
+                }
+            })
+        })
+    }
+}
+
+program.parse(process.argv)
+if (!program.args[0]) {
+    process.stdout.write(program.helpInformation())
+    program.emit('--help')
+    process.exit()
+}

@@ -1,0 +1,32 @@
+script(src='http://g-assets.daily.taobao.net/thx/brix-release/require-config.js')
+script.
+    require(['css!brix/deps/bootstrap/dist/css/bootstrap.min.css'])
+style.
+    .mb40     { margin-bottom: 40px; }
+    .mb20     { margin-bottom: 20px; }
+    .ml5      { margin-left: 5px;    }
+    .mr5      { margin-right: 5px;   }
+    .color-9  { color: #999;         }
+
+div.container
+    span.color-9 模块：
+    span #{module.id} #{module.name}
+    span.color-9.ml5.mr5 &gt;
+    span.color-9 页面：
+    span #{page.id} #{page.name}
+    span.color-9.ml5.mr5 &gt;
+    span.color-9 接口：
+    span #{action.id} #{action.name}
+
+div.container.mb40
+    h1.mb20 新建 or 编辑
+    form.form-horizontal
+        each parameter in action.responseParameterList
+            div.form-group
+                label.col-sm-2.control-label #{parameter.name}：
+                div.col-sm-10
+                    input.form-control(name=parameter.identifier data-type=parameter.dataType placeholder=(parameter.identifier + ' ' + parameter.name + ' ' + parameter.dataType))
+        div.form-group
+            div.col-sm-offset-2.col-sm-10
+                button.btn.btn-default 确定
+                a.btn(href=('./' + action.name + '_list.html')) 取消

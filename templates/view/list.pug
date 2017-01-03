@@ -1,0 +1,44 @@
+script(src='http://g-assets.daily.taobao.net/thx/brix-release/require-config.js')
+script.
+    require(['css!brix/deps/bootstrap/dist/css/bootstrap.min.css'])
+style.
+    .mb40     { margin-bottom: 40px; }
+    .mb20     { margin-bottom: 20px; }
+    .ml5      { margin-left: 5px;    }
+    .mr5      { margin-right: 5px;   }
+    .color-9  { color: #999;         }
+
+div.container
+    span.color-9 模块：
+    span #{module.id} #{module.name}
+    span.color-9.ml5.mr5 &gt;
+    span.color-9 页面：
+    span #{page.id} #{page.name}
+    span.color-9.ml5.mr5 &gt;
+    span.color-9 接口：
+    span #{action.id} #{action.name}
+
+div.container.mb40
+    h1.mb20 列表
+    //- 请求参数
+    form.form-inline
+        a.btn.btn-primary(href=('./' + action.name + '_item.html')) 新增
+        each parameter in action.requestParameterList
+            input.form-control(name=parameter.identifier data-type=parameter.dataType placeholder=parameter.name)
+        else
+            span -
+        button.btn.btn-default 确定
+    //- 响应参数
+    table.table
+        thead
+            tr
+                each parameter in action.responseParameterList
+                    //- #{parameter.id} #{parameter.identifier} #{parameter.name} #{parameter.dataType} #{parameter.remark}
+                    td #{parameter.name}
+                td 操作
+        tbody
+            tr(v-for=(index, item) in list)
+                each parameter in action.responseParameterList
+                    td {{ item.#{parameter.identifier} }}
+                td
+                    a(href=('./' + action.name + '_item.html')) 编辑
